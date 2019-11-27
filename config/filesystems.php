@@ -55,6 +55,23 @@ return [
             'visibility' => 'public',
         ],
 
+        'upload' => [
+            'driver' => 'local',
+            'root' => storage_path('../public/upload'),
+            'url' => env('APP_URL').'/upload',
+            'visibility' => 'public',
+        ],
+
+        'template' => [
+            'driver' => 'local',
+            'root' => storage_path('template'),
+        ],
+
+        'paper' => [
+            'driver' => 'local',
+            'root' => storage_path('app/paper'),
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

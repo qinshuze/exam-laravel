@@ -23,6 +23,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
-        //
+        \Validator::extend('entry', function ($attribute, $value, $parameters, $validator) {
+            if (\Dic::IsExistEntry($parameters[0], $value)) {
+                return $value;
+            } else {
+                return false;
+            }
+        });
     }
 }
