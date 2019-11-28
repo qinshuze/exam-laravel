@@ -40,6 +40,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $approved by 审批人
  * @property int $approved by 审批人
  * @property int|null $approved by 审批人
+ * @property int|null $approved by 审批人
+ * @property int|null $approved by 审批人
  */
 class PaperApplyModel extends Model
 {

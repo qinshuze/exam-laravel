@@ -276,6 +276,7 @@ class PaperService
             'topic_type_description' => $paperConfig->topic_type_description,
             'mode'                   => $paperConfig->mode,
             'validity_period'        => $paperConfig->validity_period,
+            'organization_method'    => $paperConfig->organization_method,
             'topic_number'           => $topicNumber,
             'total_score'            => $totalScore,
             'topic'                  => $paperTopics,

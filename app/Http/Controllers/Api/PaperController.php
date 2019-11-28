@@ -87,7 +87,7 @@ class PaperController extends Controller
                     // 如果考卷状态被修改为发布，则生成考卷模板
                     $err = $this->paperService->generateTemplate($id);
                     if ($err) {
-                        return ApiResponse::error('发布失败，请检查考卷信息是否填写完整', ErrorCodeEnum::PAPER_RELEASE_FAIL, $err);
+                        return ApiResponse::error('发布失败，请检查考卷信息是否填写完整', ErrorCodeEnum::CHECK_PAPER_COMPLETE_FAIL, $err);
                     }
                     break;
             }

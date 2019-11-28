@@ -21,4 +21,6 @@ class PaperEnum
     const SCORE_TYPE_STANDARD       = 3;            // 标准分数
     const ORGANIZATION_METHOD_ALL   = 1;            // 全题目
     const ORGANIZATION_METHOD_RAND  = 2;            // 随机抽题
+    const SHOW_RESULT_YES           = 1;            // 显示答题结果
+    const SHOW_RESULT_NO            = 2;            // 不显示答题结果
 }

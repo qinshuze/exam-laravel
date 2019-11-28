@@ -37,4 +37,9 @@ class UserAnswerHistoryModel extends Model
     protected $casts = [
         'content' => 'object',
     ];
+
+    public function paper()
+    {
+        return $this->belongsTo(PaperModel::class);
+    }
 }

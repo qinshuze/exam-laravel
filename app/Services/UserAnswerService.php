@@ -138,16 +138,29 @@ class UserAnswerService
     {
         $userAnswerModel = $this->getUserAnswer($user_id, $paper_id);
         if ($userAnswerModel) throw new InternalErrorException('答题记录已存在');
+
+        $userAnswerModel                   = new UserAnswerModel();
+        $userAnswerModel->user_id          = $user_id;
+        $userAnswerModel->paper_id         = $paper_id;
+        $userAnswerModel->answer_frequency = $data['answer_frequency'] ?? 0;
+        $userAnswerModel->content          = $this->setContent($paper_id, $data);
+        $userAnswerModel->save();
+
+        return $userAnswerModel;
+    }
+
+    public function setContent(int $paper_id, array $data)
+    {
         $answerPaperTemp = \Storage::disk('paper')->get($paper_id . '.json');
         $answerPaperTemp = json_decode($answerPaperTemp, true);
 
-        $dataArchives  = array_column($data['archives'], null, 'id');
+        $dataArchives  = array_column($data['archives'] ?? [], null, 'id');
         $paperArchives = $answerPaperTemp['archives'];
         foreach ($paperArchives as &$item) {
             if (isset($dataArchives[$item['id']])) $item['value'] = $dataArchives[$item['id']]['value'];
         }
 
-        $dataTopics  = array_column($data['topic'], null, 'id');
+        $dataTopics  = array_column($data['topic'] ?? [], null, 'id');
         $paperTopics = $answerPaperTemp['topic'];
         foreach ($paperTopics as &$item) {
             if (isset($dataTopics[$item['id']])) $item['user_answer'] = array_map('strtoupper', $dataTopics[$item['id']]['answer']);
@@ -157,21 +170,14 @@ class UserAnswerService
             'paper_title'       => $answerPaperTemp['title'],
             'archives'          => $paperArchives,
             'topic'             => $paperTopics,
-            'paper_total_score' => $answerPaperTemp['total_score'],
+            'paper_total_score' => $answerPaperTemp['mode'] == PaperEnum::MODE_BRUSH ? 0 : $answerPaperTemp['total_score'],
             'topic_number'      => $answerPaperTemp['topic_number'],
             'limited_time'      => $answerPaperTemp['limited_time'],
             'start_answer_time' => $data['start_answer_time'] ?? 0,
             'submit_paper_time' => 0,
         ];
 
-        $userAnswerModel                   = new UserAnswerModel();
-        $userAnswerModel->user_id          = $user_id;
-        $userAnswerModel->paper_id         = $paper_id;
-        $userAnswerModel->answer_frequency = $data['answer_frequency'] ?? 0;
-        $userAnswerModel->content          = $insertContent;
-        $userAnswerModel->save();
-
-        return $userAnswerModel;
+        return $insertContent;
     }
 
     public function update(int $paper_id, int $user_id, array $data)
@@ -185,7 +191,7 @@ class UserAnswerService
             if (isset($dataArchives[$item->id])) $item->value = $dataArchives[$item->id]['value'];
         }
 
-        $dataTopics  = array_column($data['topic'], null, 'id');
+        $dataTopics = array_column($data['topic'], null, 'id');
         foreach ($answerContent->topic as &$item) {
             if (isset($dataTopics[$item->id])) $item->user_answer = array_map('strtoupper', $dataTopics[$item->id]['answer']);
         }
@@ -210,10 +216,10 @@ class UserAnswerService
             ]);
         }
         else {
-            $answerContent = $userAnswerModel->content;
-            $answerContent->start_answer_time = $userAnswerModel->content->start_answer_time ? $userAnswerModel->content->start_answer_time : time();
-            $userAnswerModel->content = $answerContent;
-            $userAnswerModel->answer_frequency           += 1;
+            $answerContent                     = $userAnswerModel->content;
+            $answerContent->start_answer_time  = $userAnswerModel->content->start_answer_time ? $userAnswerModel->content->start_answer_time : time();
+            $userAnswerModel->content          = $answerContent;
+            $userAnswerModel->answer_frequency += 1;
             $userAnswerModel->update();
         }
 
@@ -228,8 +234,11 @@ class UserAnswerService
         $this->check($user_id, $paperModel);
 
         $userAnswerModel = UserAnswerModel::query()->whereUserId($user_id)->wherePaperId($paper_id)->first();
-        if (!$userAnswerModel || !isset($userAnswerModel->content->start_answer_time)) throw new AuthorizationException('非法请求');
+        if (!$userAnswerModel || empty($userAnswerModel->content->start_answer_time)) throw new AuthorizationException('非法请求');
         if (($submitPaperTime - $userAnswerModel->content->start_answer_time) < 60) throw new AuthorizationException('开始答题之后需要等待1分钟之后才能交卷');
+
+        $answerPaperTemp = \Storage::disk('paper')->get($paper_id . '.json');
+        $answerPaperTemp = json_decode($answerPaperTemp);
 
         $topicNumber        = 0;
         $userTotalScore     = 0;
@@ -237,10 +246,9 @@ class UserAnswerService
         $errorTopicNumber   = 0;
         $blankTopicNumber   = 0;
         $answerContent      = $userAnswerModel->content;
-        $paperConfigModel   = PaperConfigModel::query()->find($paper_id);
         foreach ($answerContent->topic as $topic) {
             $topicNumber += 1;
-            if (empty($topic->answer)) {
+            if (empty($topic->user_answer)) {
                 $topic->user_score         = 0;
                 $blankTopicNumber          += 1;
                 $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_BLANK;
@@ -248,30 +256,32 @@ class UserAnswerService
             else {
                 // 如果题目类型是填空题，并且组卷方式是随机抽题，则需要判断漏选得分
                 if ($topic->topic_type_id == TopicTypeEnum::BLANK) {
-                    if (array_diff($topic->user_answer, $topic->answer)) {
-                        $topic->user_score         = 0;
-                        $errorTopicNumber          += 1;
-                        $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_ERR;
-                    }
-                    else {
-                        $correctTopicNumber        += 1;
-                        $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_OK;
-                        $user_answer               = strtolower(implode(',', $topic->user_answer));
-                        $topic_answer              = strtolower(implode(',', $topic->answer));
-                        if ($user_answer == $topic_answer) {
-                            $topic->user_score = $topic->score;
-                            $userTotalScore    += $topic->user_score;
+                    foreach ($topic->answer as $key => $answer) {
+                        if (isset($topic->user_answer[$key]) && array_diff($topic->user_answer[$key], $answer)) {
+                            $topic->user_score         = 0;
+                            $errorTopicNumber          += 1;
+                            $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_ERR;
                         }
                         else {
-                            if ($paperConfigModel->organization_method->type == PaperEnum::ORGANIZATION_METHOD_RAND) {
-                                $randomConfig      = $paperConfigModel->organization_method->random->config;
-                                $randomConfig      = array_column($randomConfig, null, 'topic_type_id');
-                                $topic->user_score = $randomConfig[$topic->topic_type_id]['missing_score'] ?? 0;
+                            $correctTopicNumber        += 1;
+                            $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_OK;
+                            $user_answer               = strtolower(implode(',', $topic->user_answer[$key] ?? []));
+                            $topic_answer              = strtolower(implode(',', $answer));
+                            if ($user_answer == $topic_answer) {
+                                $topic->user_score = $topic->score;
+                                $userTotalScore    += $topic->user_score;
                             }
                             else {
-                                $topic->user_score = $topic->score;
+                                if ($answerPaperTemp->organization_method->type == PaperEnum::ORGANIZATION_METHOD_RAND) {
+                                    $randomConfig      = $answerPaperTemp->organization_method->random->config;
+                                    $randomConfig      = array_column($randomConfig, null, 'topic_type_id');
+                                    $topic->user_score = $randomConfig[$topic->topic_type_id]['missing_score'] ?? 0;
+                                }
+                                else {
+                                    $topic->user_score = $topic->score;
+                                }
+                                $userTotalScore += $topic->user_score;
                             }
-                            $userTotalScore += $topic->user_score;
                         }
                     }
                 }
@@ -298,17 +308,32 @@ class UserAnswerService
             }
         }
 
-        $answerContent->submit_paper_time = $submitPaperTime;                                       // 交卷时间
-        $answerContent->correct_rate      = ($correctTopicNumber / $topicNumber) * 100;             // 正确率
-        $answerContent->error_rate        = ($errorTopicNumber / $topicNumber) * 100;               // 错误率
-        $answerContent->answer_time       = $submitPaperTime - $answerContent->start_answer_time;   // 答题时长
-        $answerContent->user_total_score  = $userTotalScore;                                        // 用户总得分
+        $answerContent->paper_mode           = $answerPaperTemp->mode;
+        $answerContent->submit_paper_time    = $submitPaperTime;                                                    // 交卷时间
+        $answerContent->correct_rate         = ($correctTopicNumber / $topicNumber) * 100;                          // 正确率
+        $answerContent->error_rate           = ($errorTopicNumber / $topicNumber) * 100;                            // 错误率
+        $answerContent->complete_rate        = (($correctTopicNumber + $errorTopicNumber) / $topicNumber) * 100;    // 完成率
+        $answerContent->correct_topic_number = $correctTopicNumber;                                                 // 答对题目数量
+        $answerContent->error_topic_number   = $errorTopicNumber;                                                   // 错题数量
+        $answerContent->blankTopicNumber     = $blankTopicNumber;                                                   // 空题数量
+        $answerContent->answer_time          = $submitPaperTime - $answerContent->start_answer_time;                // 答题时长
+        $answerContent->user_total_score     = $userTotalScore;                                                     // 用户总得分
 
         $userAnswerHistory           = new UserAnswerHistoryModel();
         $userAnswerHistory->user_id  = $user_id;
         $userAnswerHistory->paper_id = $paper_id;
         $userAnswerHistory->content  = $answerContent;
-        $userAnswerHistory->save();
+
+        \DB::beginTransaction();
+        try {
+            $userAnswerHistory->save();
+            $userAnswerModel->content = $this->setContent($paper_id, []);
+            $userAnswerModel->update();
+            \DB::commit();
+        } catch (\Exception $exception) {
+            \DB::rollBack();
+            throw $exception;
+        }
 
         return $userAnswerHistory;
     }

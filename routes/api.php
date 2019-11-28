@@ -29,7 +29,7 @@ Route::namespace('Api')->middleware(\App\Http\Middleware\ApiAuthenticate::class)
     Route::get('helper', 'AboutController@getHelperDoc');            // 获取帮助文档
 
     Route::prefix('user')->group(function () {
-        Route::get('/info', 'UserController@getUserInfo');                        // 获取当前用户信息
+        Route::get('info', 'UserController@getUserInfo');                        // 获取当前用户信息
     });
 
     Route::middleware(\App\Http\Middleware\OpAuthenticate::class)->group(function () {
@@ -75,13 +75,20 @@ Route::namespace('Api')->middleware(\App\Http\Middleware\ApiAuthenticate::class)
     });
 
     Route::prefix('applet')->group(function () {
-        Route::get('/paper/{id}/topic', 'UserAnswerController@getAnswerPaper');   // 获取答卷
-        Route::put('/paper/{id}/topic', 'UserAnswerController@saveAnswerPaper');  // 保存答卷
-        Route::put('/paper/{id}/answer', 'UserAnswerController@startAnswer');     // 开始答题
-        Route::post('/paper/{id}/apply', 'PaperApplyController@apply');           // 答卷申请
+        Route::get('paper/{id}/topic', 'UserAnswerController@getAnswerPaper');   // 获取答卷
+        Route::put('paper/{id}/topic', 'UserAnswerController@saveAnswerPaper');  // 保存答卷
+        Route::put('paper/{id}/answer', 'UserAnswerController@startAnswer');     // 开始答题
+        Route::post('paper/{id}/apply', 'PaperApplyController@apply');           // 答卷申请
         Route::post('user/apply/maker', 'UserApplyController@applyExaminer');     // 申请成为出题人
         Route::get('user/apply/maker', 'UserApplyController@getUserApplyStatus'); // 获取用户申请状态
         Route::post('phone', 'UserApplyController@getPhoneByWxEncryptedData');    // 获取用户微信关联手机号
         Route::post('submit_paper/{id}', 'UserAnswerController@submitAnswer');    // 交卷
+
+        Route::get('history', 'UserAnswerHistoryController@list');                // 用户答题历史列表
+        Route::get('history/{id}', 'UserAnswerHistoryController@detail');         // 用户答题历史详情
+
+        Route::get('fav', 'UserPaperFavController@list');                         // 用户考卷收藏列表
+        Route::post('fav', 'UserPaperFavController@add');                         // 添加收藏考卷
+        Route::delete('fav/{id}', 'UserPaperFavController@delete');            // 删除收藏考卷
     });
 });

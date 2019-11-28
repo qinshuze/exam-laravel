@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ErrorCodeEnum;
 use App\Enums\PaperEnum;
-use App\Facades\UploadFileService;
 use App\Helpers\ApiResponse;
 use App\Http\Forms\UserAnswer\UserAnswerPaperForm;
 use App\Http\Forms\UserAnswer\UserAnswerPaperSaveForm;
@@ -54,9 +53,10 @@ class UserAnswerController
         $paperConfigModel = PaperConfigModel::query()->find($paper_id);
         if ($paperConfigModel->visit_password != '') {
             if (!$form->input('password')) {
-                return ApiResponse::error('该考试需要输入密码才能进入', ErrorCodeEnum::USER_ANSWER_PASSWORD_NOT);
-            } else if ($paperConfigModel->visit_password != $form->input('password')) {
-                return ApiResponse::error('密码输入错误', ErrorCodeEnum::USER_ANSWER_PASSWORD_ERR);
+                return ApiResponse::error('该考试需要输入密码才能进入', ErrorCodeEnum::AUTHORIZATION_USER_ANSWER_PASSWORD_NOT);
+            }
+            else if ($paperConfigModel->visit_password != $form->input('password')) {
+                return ApiResponse::error('密码输入错误', ErrorCodeEnum::AUTHORIZATION_USER_ANSWER_PASSWORD_ERR);
             }
         }
 
@@ -101,11 +101,12 @@ class UserAnswerController
 
     public function saveAnswerPaper(int $paper_id, UserAnswerPaperSaveForm $form)
     {
-        $input             = $form->input();
+        $input      = $form->input();
         $userAnswer = $this->userAnswer->getUserAnswer(\UserService::getCurrentUserId(), $paper_id);
         if (!$userAnswer) {
             $this->userAnswer->create($paper_id, \UserService::getCurrentUserId(), $input);
-        } else {
+        }
+        else {
             $this->userAnswer->update($paper_id, \UserService::getCurrentUserId(), $input);
         }
 
@@ -120,12 +121,22 @@ class UserAnswerController
 
     public function submitAnswer(int $paper_id)
     {
-        $answer = $this->userAnswer->submitAnswerPaper(\UserService::getCurrentUserId(), $paper_id);
+        $answer           = $this->userAnswer->submitAnswerPaper(\UserService::getCurrentUserId(), $paper_id);
+        $paperConfigModel = PaperConfigModel::query()->find($paper_id);
+        $res              = [];
+        if ($paperConfigModel->is_show_result == PaperEnum::SHOW_RESULT_YES) {
+            $res['correct_rate']       = $answer->content->correct_rate;
+            $res['error_topic_number'] = $answer->content->error_topic_number;
+            $res['answer_time']        = $answer->content->answer_time;
+            $res['submit_paper_time']  = $answer->content->submit_paper_time;
+            $res['paper_total_score']  = $answer->content->paper_total_score;
+            $res['paper_topic_number'] = $answer->content->topic_number;
+            $res['user_total_score']   = $answer->content->user_total_score;
+        }
+
         return ApiResponse::success([
-            'correct_rate'      => $answer->content->correct_rate,
-            'error_rate'        => $answer->content->error_rate,
-            'answer_time'       => $answer->content->answer_time,
-            'submit_paper_time' => $answer->content->submit_paper_time,
+            'is_show_result' => $paperConfigModel->is_show_result == PaperEnum::SHOW_RESULT_YES,
+            'res'            => $res
         ]);
     }
 }
