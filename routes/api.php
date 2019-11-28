@@ -1,7 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
-
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -17,6 +15,7 @@ Route::post('oauth/wechat/login', 'Api\LoginController@wechatWebOauthLogin');   
 Route::post('oauth/wechat/applet/login', 'Api\LoginController@appletLogin');         // 微信小程序登录
 Route::get('applet/example/paper', 'Api\PaperController@getExamplePageList');        // 获取示例考卷列表
 Route::get('applet/paper/{id}', 'Api\UserAnswerController@getAnswerPaperDetail');    // 获取答卷详情
+Route::get('applet/banner', 'Api\BannerController@list');                            // 小程序首页轮播图列表
 
 Route::namespace('Api')->middleware(\App\Http\Middleware\ApiAuthenticate::class)->group(function () {
     Route::get('dic', 'DicController@all');                 // 获取字典
@@ -33,7 +32,7 @@ Route::namespace('Api')->middleware(\App\Http\Middleware\ApiAuthenticate::class)
     });
 
     Route::middleware(\App\Http\Middleware\OpAuthenticate::class)->group(function () {
-        Route::get('template/excel', 'AboutController@getExcelTemplate');
+        Route::get('download/excel', 'AboutController@getExcelTemplate');   // 下载excel模板
         Route::prefix('paper')->group(function () {
             Route::get('', 'PaperController@list');                     // 获取考卷列表
             Route::get('{id}', 'PaperController@detail');               // 获取考卷详情
@@ -89,6 +88,10 @@ Route::namespace('Api')->middleware(\App\Http\Middleware\ApiAuthenticate::class)
 
         Route::get('fav', 'UserPaperFavController@list');                         // 用户考卷收藏列表
         Route::post('fav', 'UserPaperFavController@add');                         // 添加收藏考卷
-        Route::delete('fav/{id}', 'UserPaperFavController@delete');            // 删除收藏考卷
+        Route::delete('fav/{id}', 'UserPaperFavController@delete');               // 删除收藏考卷
+
+        Route::get('error_topic', 'UserErrorTopicController@list');               // 错题列表
+        Route::get('error_topic/{id}', 'UserErrorTopicController@detail');        // 错题详情
+        Route::delete('error_topic/{id}', 'UserErrorTopicController@delete');     // 删除错题
     });
 });

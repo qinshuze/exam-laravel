@@ -70,28 +70,23 @@ class Handler extends ExceptionHandler
         }
 
         $exceptionClass = get_class($exception);
-
         switch ($exceptionClass) {
             case NotFoundHttpException::class:
-                return response()->json(ApiResponse::error($exception->getMessage(), ErrorCodeEnum::OBJECT_NOT_EXIST, $info));
-            case BadRequestHttpException::class:
-                return response()->json(ApiResponse::error($exception->getMessage(), Response::HTTP_BAD_REQUEST, $info));
+                return response()->json(ApiResponse::error($exception->getMessage(), ErrorCodeEnum::NOTFOUND_NULL, $info), Response::HTTP_NOT_FOUND);
             case ValidationException::class:
-                return response()->json(ApiResponse::error(array_values($exception->errors())[0][0], Response::HTTP_NOT_ACCEPTABLE, $info));
-            case InternalErrorException::class:
-                return response()->json(ApiResponse::error($exception->getMessage(), Response::HTTP_NOT_ACCEPTABLE, $info));
+                return response()->json(ApiResponse::error(array_values($exception->errors())[0][0], $exception->getCode(), $info), Response::HTTP_NOT_ACCEPTABLE);
             case UnauthorizedException::class:
-                return response()->json(ApiResponse::error('未登录，请登录后再操作', Response::HTTP_UNAUTHORIZED, $info));
+                return response()->json(ApiResponse::error('未登录，请登录后再操作', ErrorCodeEnum::UNAUTHORIZED_NOT_LOGIN, $info), Response::HTTP_UNAUTHORIZED);
             case TokenExpiredException::class:
-                return response()->json(ApiResponse::error('登录过期，请重新登录', Response::HTTP_UNAUTHORIZED, $info));
+                return response()->json(ApiResponse::error('登录过期，请重新登录', ErrorCodeEnum::UNAUTHORIZED_TOKEN_EXPIRED, $info), Response::HTTP_UNAUTHORIZED);
             case TokenInvalidException::class:
-                return response()->json(ApiResponse::error('无法验证令牌签名', Response::HTTP_UNAUTHORIZED, $info));
+                return response()->json(ApiResponse::error('无效的授权凭证', ErrorCodeEnum::UNAUTHORIZED_TOKEN_INVALID, $info), Response::HTTP_UNAUTHORIZED);
             case JWTException::class:
-                return response()->json(ApiResponse::error('无效的授权凭证', Response::HTTP_UNAUTHORIZED, $info));
+                return response()->json(ApiResponse::error('授权凭证验证失败', ErrorCodeEnum::CHECK_TOKEN_VERIFY_FAIL, $info), Response::HTTP_INTERNAL_SERVER_ERROR);
             case AuthorizationException::class:
-                return response()->json(ApiResponse::error($exception->getMessage(), Response::HTTP_FORBIDDEN, $info));
+                return response()->json(ApiResponse::error($exception->getMessage(), $exception->getCode(), $info), Response::HTTP_FORBIDDEN);
             default:
-                return response()->json(ApiResponse::error($exception->getMessage(), $exception->getCode(), $info));
+                return response()->json(ApiResponse::error($exception->getMessage(), $exception->getCode(), $info), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

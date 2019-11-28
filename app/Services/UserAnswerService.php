@@ -13,6 +13,7 @@ use App\Models\PaperModel;
 use App\Models\PaperTopicModel;
 use App\Models\UserAnswerHistoryModel;
 use App\Models\UserAnswerModel;
+use App\Models\UserErrorTopicModel;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Symfony\Component\CssSelector\Exception\InternalErrorException;
@@ -160,6 +161,12 @@ class UserAnswerService
             if (isset($dataArchives[$item['id']])) $item['value'] = $dataArchives[$item['id']]['value'];
         }
 
+        $dataCustomArchives  = array_column($data['custom_archives'] ?? [], null, 'id');
+        $paperCustomArchives = $answerPaperTemp['custom_archives'];
+        foreach ($paperCustomArchives as &$item) {
+            if (isset($dataCustomArchives[$item['id']])) $item['value'] = $dataCustomArchives[$item['id']]['value'];
+        }
+
         $dataTopics  = array_column($data['topic'] ?? [], null, 'id');
         $paperTopics = $answerPaperTemp['topic'];
         foreach ($paperTopics as &$item) {
@@ -169,6 +176,7 @@ class UserAnswerService
         $insertContent = [
             'paper_title'       => $answerPaperTemp['title'],
             'archives'          => $paperArchives,
+            'custom_archives'   => $paperCustomArchives,
             'topic'             => $paperTopics,
             'paper_total_score' => $answerPaperTemp['mode'] == PaperEnum::MODE_BRUSH ? 0 : $answerPaperTemp['total_score'],
             'topic_number'      => $answerPaperTemp['topic_number'],
@@ -245,6 +253,7 @@ class UserAnswerService
         $correctTopicNumber = 0;
         $errorTopicNumber   = 0;
         $blankTopicNumber   = 0;
+        $errorTopicList = [];
         $answerContent      = $userAnswerModel->content;
         foreach ($answerContent->topic as $topic) {
             $topicNumber += 1;
@@ -260,6 +269,7 @@ class UserAnswerService
                         if (isset($topic->user_answer[$key]) && array_diff($topic->user_answer[$key], $answer)) {
                             $topic->user_score         = 0;
                             $errorTopicNumber          += 1;
+                            $errorTopicList[] = $topic;
                             $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_ERR;
                         }
                         else {
@@ -302,6 +312,7 @@ class UserAnswerService
                     else {
                         $topic->user_score         = 0;
                         $errorTopicNumber          += 1;
+                        $errorTopicList[] = $topic;
                         $topic->user_answer_status = UserAnswerEnum::ANSWER_STATUS_ERR;
                     }
                 }
@@ -327,6 +338,13 @@ class UserAnswerService
         \DB::beginTransaction();
         try {
             $userAnswerHistory->save();
+            $newContent = $userAnswerHistory->content;
+            $newContent->topic = $errorTopicList;
+            $userErrorTopicModel = new UserErrorTopicModel();
+            $userErrorTopicModel->user_id = $user_id;
+            $userErrorTopicModel->paper_id = $paper_id;
+            $userErrorTopicModel->content = $newContent->topic;
+            $userErrorTopicModel->save();
             $userAnswerModel->content = $this->setContent($paper_id, []);
             $userAnswerModel->update();
             \DB::commit();

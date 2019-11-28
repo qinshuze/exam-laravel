@@ -23,6 +23,7 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\UserAnswerHistoryModel wherePaperId($value)
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\UserAnswerHistoryModel whereUserId($value)
  * @mixin \Eloquent
+ * @property-read \App\Models\PaperModel $paper
  */
 class UserAnswerHistoryModel extends Model
 {

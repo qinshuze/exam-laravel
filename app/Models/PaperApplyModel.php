@@ -31,17 +31,6 @@ use Illuminate\Database\Eloquent\Model;
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\PaperApplyModel whereStatus($value)
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\PaperApplyModel whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder|\App\Models\PaperApplyModel whereUserId($value)
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int $approved by 审批人
- * @property int|null $approved by 审批人
- * @property int|null $approved by 审批人
- * @property int|null $approved by 审批人
  */
 class PaperApplyModel extends Model
 {
